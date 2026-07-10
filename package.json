@@ -1,0 +1,21 @@
+{
+  "name": "rocket-installer",
+  "version": "0.1.0",
+  "description": "Установщик и менеджер zigbee2mqtt + MQTT-моста для rocket-home.ru",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "rocket": "bin/rocket"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "rocket": "node scripts/rocket.mjs",
+    "test": "node --test --experimental-test-module-mocks scripts/rocket-control/__tests__/"
+  },
+  "dependencies": {
+    "@clack/core": "^0.3.4",
+    "@clack/prompts": "^0.7.0"
+  }
+}

@@ -1,0 +1,17 @@
+# Мост в облако rocket-home (CLOUD_AUTH_MODE=static).
+# Генерируется make gen-configs из templates/bridge-static.conf.tmpl.
+# Mount point (hex локации) навешивает облачный брокер сам по логину —
+# поэтому единственный маппинг: весь неймспейс в обе стороны.
+connection rocket
+address ${CLOUD_MQTT_HOST}:${CLOUD_MQTT_PORT}
+bridge_protocol_version ${CLOUD_BRIDGE_PROTOCOL}
+bridge_capath /etc/ssl/certs
+try_private false
+topic # both 2
+remote_username ${CLOUD_MQTT_USERNAME}
+remote_password ${CLOUD_MQTT_PASSWORD}
+# notifications: retained $SYS/broker/connection/rocket/state нужен smoke/doctor;
+# local_only — состояние не утекает в облако
+notifications true
+notifications_local_only true
+restart_timeout 10 60

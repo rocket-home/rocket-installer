@@ -1,0 +1,12 @@
+# Рантайм-состояние машины пользователя — не для git
+.env
+data/
+secrets/
+*.bak-*
+
+# Node
+node_modules/
+
+# Временное
+*.tmp
+.DS_Store

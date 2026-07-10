@@ -1,0 +1,35 @@
+# Конфиг zigbee2mqtt. Генерируется rocket-installer (make gen-configs) ТОЛЬКО при
+# отсутствии файла: дальше файлом владеет сам z2m (пишет туда devices, permit_join
+# и сетевые ключи). Принудительная регенерация: make gen-configs FORCE=1 (с бэкапом).
+version: 4
+homeassistant:
+  enabled: false
+mqtt:
+  base_topic: ${Z2M_BASE_TOPIC}
+  server: mqtt://mqtt:1883
+  user: ${LOCAL_MQTT_USER}
+  password: '${LOCAL_MQTT_PASSWORD}'
+serial:
+  # Путь внутри контейнера фиксированный; хост-устройство мапится в compose
+  port: /dev/zigbee
+frontend:
+  enabled: true
+  port: ${Z2M_FRONTEND_PORT}
+  host: 0.0.0.0
+  # Фронт слушает всю LAN — токен обязателен (показывается в `rocket` → Статус)
+  auth_token: '${Z2M_FRONTEND_AUTH_TOKEN}'
+availability:
+  enabled: true
+  active:
+    timeout: 10
+  passive:
+    timeout: 1500
+advanced:
+  log_level: info
+  last_seen: ISO_8601
+  # GENERATE: z2m создаёт уникальные ключи сети при первом старте
+  # (дефолтный network_key общеизвестен — небезопасен)
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+devices: {}

@@ -1,0 +1,84 @@
+# Стек rocket-home hub. Запуск только через make up (нужен --env-file ../.env).
+# Пути относительные — резолвятся от каталога deploy/.
+
+# Лимит логов: спам вроде "MAC no ack" не должен забивать SD-карту.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mqtt:
+    build: ./mosquitto/
+    ports:
+      - "1883:1883"
+    volumes:
+      - ../data/mosquitto:/mosquitto/data
+      - ./mosquitto/conf.d:/mosquitto/conf.d:ro
+      - mosquitto_etc:/mosquitto/etc
+      # Динамические конфиги (bridge.conf в oauth-режиме пишет token-agent)
+      - mosquitto_dynamic:/mosquitto/dynamic
+      # Токены OAuth: rw — агент делает плановый refresh
+      - ../secrets:/mosquitto/secrets
+    environment:
+      - MQTT_USER=${LOCAL_MQTT_USER:-local}
+      - MQTT_PASSWORD=${LOCAL_MQTT_PASSWORD}
+      - CLOUD_AUTH_MODE=${CLOUD_AUTH_MODE:-oauth}
+      - CLOUD_MQTT_HOST=${CLOUD_MQTT_HOST:-mq.rocket-home.ru}
+      - CLOUD_MQTT_PORT=${CLOUD_MQTT_PORT:-8883}
+      - CLOUD_BRIDGE_PROTOCOL=${CLOUD_BRIDGE_PROTOCOL:-mqttv311}
+      - API_BASE_URL=${API_BASE_URL:-https://rocket-home.ru}
+      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+    restart: unless-stopped
+    logging: *default-logging
+    # $SYS/broker/version retained → ответ мгновенный; брокер требует auth.
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -u \"$$MQTT_USER\" -P \"$$MQTT_PASSWORD\" -t '$$SYS/broker/version' -C 1 -W 3"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:${Z2M_IMAGE_TAG:-1.42.0}
+    ports:
+      - "${Z2M_FRONTEND_PORT:-4000}:${Z2M_FRONTEND_PORT:-4000}"
+    devices:
+      # Docker не принимает symlink как device node: ZIGBEE_DEVICE_HOST = realpath на хосте,
+      # внутри контейнера путь всегда /dev/zigbee (его же держит serial.port конфига z2m).
+      - "${ZIGBEE_DEVICE_HOST:-/dev/ttyACM0}:/dev/zigbee"
+    volumes:
+      - ../data/zigbee2mqtt:/app/data
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    # В образе есть wget (curl нет). Healthcheck — только видимость: unless-stopped
+    # не рестартит unhealthy. Щедрый start_period на инициализацию координатора.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:${Z2M_FRONTEND_PORT:-4000}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nodered:
+    image: nodered/node-red:${NODERED_IMAGE_TAG:-4.0.9}
+    profiles:
+      - nodered
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "1880:1880"
+    volumes:
+      - ../data/nodered:/data
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  mosquitto_etc:
+  mosquitto_dynamic:

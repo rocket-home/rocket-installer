@@ -1,0 +1,94 @@
+{
+  "_comment": [
+    "Матрица совместимости: семейство адаптера + версия прошивки → допустимый диапазон",
+    "и рекомендуемый тег zigbee2mqtt. Источник истины для make resolve-tag / make update.",
+    "ОБНОВЛЯЕТСЯ ПРИ РЕЛИЗАХ z2m: сверять с https://github.com/Koenkk/zigbee2mqtt/releases",
+    "и changelog 2.0 (дроп legacy-ezsp, требование ember >= 7.4.x).",
+    "Формат firmware: zstack — build-дата (число, напр. 20240710); ember — semver EZSP.",
+    "Правила проверяются по порядку, применяется первое совпавшее."
+  ],
+  "schema_version": 1,
+  "updated_at": "2026-07-10",
+  "z2m": {
+    "latest_stable": "2.6.0",
+    "legacy_stable": "1.42.0"
+  },
+  "families": {
+    "zstack": {
+      "title": "TI Z-Stack (CC2652/CC1352, SONOFF ZBDongle-P, CC2531)",
+      "usb_ids": ["0451:16a8", "10c4:ea60", "1a86:7523"],
+      "firmware_scheme": "znp_build_date",
+      "probe": "znp",
+      "z2m_adapter": "zstack",
+      "rules": [
+        {
+          "firmware": { "min": "20210708" },
+          "z2m": { "min": "1.40.0", "recommended": "2.6.0" }
+        },
+        {
+          "firmware": { "max": "20210707" },
+          "z2m": { "max": "1.39.1", "recommended": "1.39.1" },
+          "advice": "Прошивка Z-Stack устарела. Рекомендуем обновить координатор до 20240710+ (docs/flash-zstack.md), затем повторить детект."
+        }
+      ],
+      "hardware_overrides": {
+        "CC2531": {
+          "z2m": { "max": "1.42.0", "recommended": "1.42.0" },
+          "advice": "CC2531 не поддерживается в zigbee2mqtt 2.x и слаб для сетей >15 устройств. Рекомендуем заменить на SONOFF ZBDongle-P/E."
+        }
+      }
+    },
+    "ember": {
+      "title": "Silicon Labs EFR32 (SONOFF ZBDongle-E, SLZB-06M)",
+      "usb_ids": ["1a86:55d4", "10c4:8a2a", "0403:6015"],
+      "firmware_scheme": "ezsp_semver",
+      "probe": "silabs",
+      "z2m_adapter": "ember",
+      "rules": [
+        {
+          "firmware": { "min": "7.4.0" },
+          "z2m": { "min": "2.0.0", "recommended": "2.6.0" }
+        },
+        {
+          "firmware": { "min": "6.10.0", "max": "7.3.99" },
+          "z2m": { "max": "1.42.0", "recommended": "1.42.0" },
+          "adapter_override": "ezsp",
+          "advice": "Для zigbee2mqtt 2.x (драйвер ember) нужна прошивка EZSP >= 7.4.x. Обновление: docs/flash-ember.md. Пока используется legacy-драйвер ezsp на z2m 1.42.0."
+        },
+        {
+          "firmware": { "max": "6.9.99" },
+          "z2m": {},
+          "advice": "Прошивка EZSP слишком старая — обновите координатор (docs/flash-ember.md) перед установкой."
+        }
+      ]
+    },
+    "deconz": {
+      "title": "ConBee / ConBee II / RaspBee (deCONZ)",
+      "usb_ids": ["1cf1:0030"],
+      "firmware_scheme": "manual",
+      "probe": "none",
+      "z2m_adapter": "deconz",
+      "rules": [
+        {
+          "firmware": {},
+          "z2m": { "recommended": "2.6.0" },
+          "advice": "Автодетект прошивки deCONZ не поддерживается — совместимость подтверждайте вручную (https://www.zigbee2mqtt.io/guide/adapters/)."
+        }
+      ]
+    },
+    "zigate": {
+      "title": "ZiGate",
+      "usb_ids": ["303a:1001"],
+      "firmware_scheme": "manual",
+      "probe": "none",
+      "z2m_adapter": "zigate",
+      "rules": [
+        {
+          "firmware": {},
+          "z2m": { "recommended": "1.42.0" },
+          "advice": "ZiGate поддерживается ограниченно; автодетект недоступен, совместимость подтверждайте вручную."
+        }
+      ]
+    }
+  }
+}

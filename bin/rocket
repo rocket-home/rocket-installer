@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Лаунчер TUI: резолвит собственный симлинк (/usr/local/bin/rocket → репо) и
+# запускает scripts/rocket.mjs из корня репозитория.
+set -euo pipefail
+
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+    dir="$(cd "$(dirname "$SELF")" && pwd)"
+    SELF="$(readlink "$SELF")"
+    [[ "$SELF" != /* ]] && SELF="$dir/$SELF"
+done
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+command -v node >/dev/null 2>&1 || {
+    echo "Нужен Node.js ≥18 (TUI). Установка: curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && sudo apt-get install -y nodejs" >&2
+    echo "Без Node доступны make-цели: make -C \"$ROOT\" help" >&2
+    exit 1
+}
+[ -d "$ROOT/node_modules" ] || (cd "$ROOT" && npm ci --omit=dev)
+
+exec node "$ROOT/scripts/rocket.mjs" "$@"
