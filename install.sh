@@ -103,7 +103,9 @@ for grp in docker dialout; do
 done
 
 # ── Код ────────────────────────────────────────────────────────────────────────
+existing_install=0
 if [ -d "$INSTALL_DIR/.git" ]; then
+    existing_install=1
     say "обновляю $INSTALL_DIR…"
     $SUDO git -C "$INSTALL_DIR" fetch --tags --quiet
 else
@@ -118,6 +120,10 @@ if [ -n "$ROCKET_VERSION" ]; then
     say "версия: $ROCKET_VERSION"
 else
     warn "релизных тегов нет — использую дефолтную ветку"
+    # существующая установка: fetch без checkout оставил бы старый код
+    if [ "$existing_install" = "1" ]; then
+        $SUDO git -C "$INSTALL_DIR" pull --ff-only --quiet
+    fi
 fi
 $SUDO chown -R "$TARGET_USER" "$INSTALL_DIR"
 
