@@ -68,10 +68,11 @@ if [ "$LINK_ONLY" = "1" ]; then
 fi
 
 # ── Базовые пакеты ─────────────────────────────────────────────────────────────
-say "базовые пакеты (curl, git, jq, gettext-base)…"
+say "базовые пакеты (make, curl, git, jq, gettext-base)…"
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update -qq
-$SUDO apt-get install -y -qq ca-certificates curl git jq gettext-base udev >/dev/null
+# make обязателен: весь инструмент — make-цели (на cloud-образах его нет)
+$SUDO apt-get install -y -qq make ca-certificates curl git jq gettext-base udev >/dev/null
 
 # ── Docker ─────────────────────────────────────────────────────────────────────
 # get.docker.com: свежий docker-ce + docker-compose-plugin единообразно на обеих ОС
