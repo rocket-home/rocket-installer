@@ -8,7 +8,8 @@ set -euo pipefail
 
 REPO_URL="${ROCKET_REPO_URL:-https://s3.rocket-home.ru/installer/rocket-installer.git}"
 INSTALL_DIR="/opt/rocket-home"
-VERSION=""            # пусто = дефолтная ветка/последний релиз
+# Не VERSION: /etc/os-release экспортирует свою VERSION и перетёр бы её
+ROCKET_VERSION=""     # пусто = дефолтная ветка/последний релиз
 HEADLESS=0
 LINK_ONLY=0
 
@@ -17,7 +18,7 @@ for arg in "$@"; do
         --headless) HEADLESS=1 ;;
         --link) LINK_ONLY=1 ;;
         --dir=*) INSTALL_DIR="${arg#--dir=}" ;;
-        --version=*) VERSION="${arg#--version=}" ;;
+        --version=*) ROCKET_VERSION="${arg#--version=}" ;;
         *) echo "неизвестный флаг: $arg" >&2; exit 2 ;;
     esac
 done
@@ -33,11 +34,12 @@ case "$(uname -m)" in
     *) die "неподдерживаемая архитектура: $(uname -m) (нужна amd64/arm64)" ;;
 esac
 if [ -r /etc/os-release ]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    case "${ID:-} ${ID_LIKE:-}" in
+    # os-release читаем в сабшелле: он определяет VERSION/ID/NAME и затёр бы
+    # одноимённые переменные скрипта
+    os_id="$(. /etc/os-release && printf '%s %s' "${ID:-}" "${ID_LIKE:-}")"
+    case "$os_id" in
         *debian*|*ubuntu*) ;;
-        *) die "поддерживаются Ubuntu/Debian (обнаружено: ${PRETTY_NAME:-?})" ;;
+        *) die "поддерживаются Ubuntu/Debian (обнаружено: $os_id)" ;;
     esac
 else
     die "не удалось определить ОС (/etc/os-release отсутствует)"
@@ -107,12 +109,12 @@ else
     say "скачиваю rocket-installer → $INSTALL_DIR…"
     $SUDO git clone --quiet "$REPO_URL" "$INSTALL_DIR"
 fi
-if [ -z "$VERSION" ]; then
-    VERSION="$($SUDO git -C "$INSTALL_DIR" tag --list 'v*' --sort=-v:refname | head -1)"
+if [ -z "$ROCKET_VERSION" ]; then
+    ROCKET_VERSION="$($SUDO git -C "$INSTALL_DIR" tag --list 'v*' --sort=-v:refname | head -1)"
 fi
-if [ -n "$VERSION" ]; then
-    $SUDO git -C "$INSTALL_DIR" checkout --quiet "$VERSION"
-    say "версия: $VERSION"
+if [ -n "$ROCKET_VERSION" ]; then
+    $SUDO git -C "$INSTALL_DIR" checkout --quiet "$ROCKET_VERSION"
+    say "версия: $ROCKET_VERSION"
 else
     warn "релизных тегов нет — использую дефолтную ветку"
 fi
