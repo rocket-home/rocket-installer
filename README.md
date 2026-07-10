@@ -3,6 +3,8 @@
 Установщик и менеджер эксплуатации **zigbee2mqtt + mosquitto** для Ubuntu/Debian с мостом
 в облако умного дома [rocket-home.ru](https://rocket-home.ru/).
 
+Исходники: [github.com/rocket-home/rocket-installer](https://github.com/rocket-home/rocket-installer).
+
 ## Быстрый старт (неподготовленный пользователь)
 
 ```bash

@@ -6,7 +6,7 @@
 #   --version=<git tag> (по умолчанию — последний релиз), --link (только симлинк rocket).
 set -euo pipefail
 
-REPO_URL="${ROCKET_REPO_URL:-https://s3.rocket-home.ru/installer/rocket-installer.git}"
+REPO_URL="${ROCKET_REPO_URL:-https://github.com/rocket-home/rocket-installer.git}"
 INSTALL_DIR="/opt/rocket-home"
 # Не VERSION: /etc/os-release экспортирует свою VERSION и перетёр бы её
 ROCKET_VERSION=""     # пусто = дефолтная ветка/последний релиз
