@@ -118,6 +118,7 @@ remote_username ${LOCATION_ID}
 remote_password token=$1
 notifications true
 notifications_local_only true
+notification_topic \$SYS/broker/connection/rocket/state
 restart_timeout 10 60
 EOF
     mv "$BRIDGE_CONF.tmp" "$BRIDGE_CONF"

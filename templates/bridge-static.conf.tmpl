@@ -10,8 +10,10 @@ try_private false
 topic # both 2
 remote_username ${CLOUD_MQTT_USERNAME}
 remote_password ${CLOUD_MQTT_PASSWORD}
-# notifications: retained $SYS/broker/connection/rocket/state нужен smoke/doctor;
-# local_only — состояние не утекает в облако
+# notifications: retained-состояние моста нужно smoke/doctor/token-agent;
+# local_only — состояние не утекает в облако. Топик пиним явно: дефолтный
+# включает client id с hostname контейнера ($SYS/.../<hostname>.rocket/state)
 notifications true
 notifications_local_only true
+notification_topic $SYS/broker/connection/rocket/state
 restart_timeout 10 60

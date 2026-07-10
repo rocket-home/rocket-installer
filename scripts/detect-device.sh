@@ -44,12 +44,18 @@ emit() { # emit <path> <realpath>
 
 seen=""
 {
+    # if, не `[ ] &&`: ложный guard в конце группы вернул бы 1 и уронил
+    # пайплайн под set -e -o pipefail (грабли на хосте без ttyACM*)
     # 1. стабильный симлинк из наших udev-правил
-    [ -e "$DEV_ROOT/dev/zigbee" ] && printf '%s\n' "$DEV_ROOT/dev/zigbee"
+    if [ -e "$DEV_ROOT/dev/zigbee" ]; then printf '%s\n' "$DEV_ROOT/dev/zigbee"; fi
     # 2. by-id (стабильные имена)
-    for p in "$DEV_ROOT"/dev/serial/by-id/*; do [ -e "$p" ] && printf '%s\n' "$p"; done
+    for p in "$DEV_ROOT"/dev/serial/by-id/*; do
+        if [ -e "$p" ]; then printf '%s\n' "$p"; fi
+    done
     # 3. сырые tty
-    for p in "$DEV_ROOT"/dev/ttyUSB* "$DEV_ROOT"/dev/ttyACM*; do [ -e "$p" ] && printf '%s\n' "$p"; done
+    for p in "$DEV_ROOT"/dev/ttyUSB* "$DEV_ROOT"/dev/ttyACM*; do
+        if [ -e "$p" ]; then printf '%s\n' "$p"; fi
+    done
 } 2>/dev/null | while read -r path; do
     real="$(readlink -f "$path")"
     case " $seen " in *" $real "*) continue;; esac
