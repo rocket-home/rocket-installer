@@ -40,7 +40,10 @@ now() { date +%s; }
 status() { # status <state> [detail]
     printf '{"state":"%s","detail":"%s","updated_at":%s,"jwt_issued_at":%s,"location_id":"%s"}\n' \
         "$1" "${2:-}" "$(now)" "$JWT_ISSUED_AT" "$LOCATION_ID" >"$STATUS_FILE.tmp" \
+        && chmod 644 "$STATUS_FILE.tmp" \
         && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+    # 644 явно: секретов в статусе нет, а хостовые status.sh/doctor читают файл
+    # под обычным пользователем (агент работает под root с umask 077)
 }
 
 tokens_get() { jq -r ".$1 // empty" "$TOKENS_FILE" 2>/dev/null; }
@@ -106,6 +109,9 @@ fetch_jwt() {
 }
 
 write_bridge_conf() { # write_bridge_conf <jwt>
+    # umask в сабшелле — не протекает на последующие записи (status-файл должен
+    # оставаться читаемым с хоста)
+    (
     umask 077
     cat >"$BRIDGE_CONF.tmp" <<EOF
 connection rocket
@@ -121,6 +127,7 @@ notifications_local_only true
 notification_topic \$SYS/broker/connection/rocket/state
 restart_timeout 10 60
 EOF
+    )
     mv "$BRIDGE_CONF.tmp" "$BRIDGE_CONF"
     JWT_ISSUED_AT="$(now)"
 }

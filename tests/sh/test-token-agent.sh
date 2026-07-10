@@ -61,6 +61,11 @@ grep -q 'remote_username loc123' "$tmp/bridge.conf" || { echo "FAIL: locationId"
 grep -q 'address mq.example:8883' "$tmp/bridge.conf" || { echo "FAIL: address"; exit 1; }
 wait_for 5 sh -c "jq -e '.state == \"ok\"' '$tmp/status.json' >/dev/null" \
     || { echo "FAIL: статус не ok: $(cat "$tmp/status.json")"; exit 1; }
+# статус читаем не-root'ом (bridge.conf пишется под umask 077 — не должен протечь)
+[ "$(stat -c %a "$tmp/status.json")" = "644" ] \
+    || { echo "FAIL: права status.json = $(stat -c %a "$tmp/status.json"), ожидалось 644"; exit 1; }
+[ "$(stat -c %a "$tmp/bridge.conf")" = "600" ] \
+    || { echo "FAIL: права bridge.conf = $(stat -c %a "$tmp/bridge.conf"), ожидалось 600"; exit 1; }
 # ротация: JWT_MAX_AGE=1с → через пару циклов токен свежее
 wait_for 10 sh -c "grep -qE 'token=jwt-[2-9]' '$tmp/bridge.conf'" \
     || { echo "FAIL: JWT не ротируется"; exit 1; }
