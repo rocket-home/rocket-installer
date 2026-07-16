@@ -32,6 +32,9 @@ grep -q "password: 'localpass'" "$z2m" || { echo "FAIL: пароль не отр
 grep -q "adapter: ember" "$z2m" || { echo "FAIL: serial.adapter не добавлен"; exit 1; }
 grep -q "auth_token: 'fronttoken'" "$z2m" || { echo "FAIL: auth_token фронта"; exit 1; }
 grep -q 'network_key: GENERATE' "$z2m" || { echo "FAIL: network_key GENERATE"; exit 1; }
+# Дефолты для диагностики Радара (Tier 1): availability и last_seen должны быть включены.
+grep -A1 '^availability:' "$z2m" | grep -q 'enabled: true' || { echo "FAIL: availability не включён по умолчанию"; exit 1; }
+grep -q 'last_seen: ISO_8601' "$z2m" || { echo "FAIL: last_seen не ISO_8601 по умолчанию"; exit 1; }
 
 bridge="$tmp/deploy/mosquitto/conf.d/bridge.conf"
 grep -q 'address mq.rocket-home.ru:8883' "$bridge" || { echo "FAIL: мост address"; exit 1; }
