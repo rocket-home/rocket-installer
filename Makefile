@@ -68,6 +68,7 @@ gen-configs: ## Сгенерировать конфиги (zigbee2mqtt, мост
 
 .PHONY: up
 up: ## Запустить/пересоздать стек (применяет новый device/env — не plain restart!)
+	@$(ROOT)/scripts/check-device.sh
 	@$(COMPOSE) up -d --build --force-recreate
 
 .PHONY: down

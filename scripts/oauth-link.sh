@@ -29,12 +29,22 @@ expires_in="$(jq -r '.expires_in // 600' <<<"$resp")"
 [ -n "$device_code" ] && [ -n "$user_code" ] || die "неожиданный ответ /oauth/device/code: $resp"
 [ "$interval" -lt 3 ] && interval=5
 
+# Две ссылки — две разные инструкции. verification_uri_complete несёт код прямо в
+# адресе (RFC 8628 §3.3.1), вводить там нечего: просить ввод под такой ссылкой значит
+# отправить человека искать поле, которого на экране нет. Код всё равно показываем —
+# чтобы было чем СВЕРИТЬ то, что открылось, а это защита от подмены ссылки.
 log ""
 log "┌─────────────────────────────────────────────────────┐"
 log "  Откройте на телефоне или компьютере:"
-log "    ${verification_uri_complete:-$verification_uri}"
-log ""
-log "  и введите код:  ${_C_GRN}${user_code}${_C_OFF}"
+if [ -n "$verification_uri_complete" ]; then
+    log "    $verification_uri_complete"
+    log ""
+    log "  Код уже в ссылке — на странице должно быть:  ${_C_GRN}${user_code}${_C_OFF}"
+else
+    log "    $verification_uri"
+    log ""
+    log "  и введите код:  ${_C_GRN}${user_code}${_C_OFF}"
+fi
 log "└─────────────────────────────────────────────────────┘"
 log "Жду подтверждения (до $((expires_in / 60)) мин, Ctrl+C — отмена)…"
 
