@@ -56,6 +56,10 @@ oauth-link: ## Линковка с rocket-home.ru (OAuth device grant) → secre
 relink: oauth-link ## Повторная линковка + перезапуск моста
 	@$(COMPOSE) restart mqtt
 
+.PHONY: import-legacy
+import-legacy: ## Импорт живого хаба со старого стека: make import-legacy [LEGACY_DIR=... | LEGACY_CONTAINER=...]
+	@$(ROOT)/scripts/import-legacy.sh
+
 .PHONY: gen-configs
 gen-configs: ## Сгенерировать конфиги (zigbee2mqtt, мост) из шаблонов с бэкапами
 	@$(ROOT)/scripts/gen-configs.sh
