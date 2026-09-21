@@ -8,9 +8,18 @@ AGENT="$ROOT/deploy/mosquitto/token-agent.sh"
 tmp="$(mktemp -d)"
 MOCK_PID=""
 AGENT_PID=""
+# Длительность фейкового «брокера» несёт метку прогона ($$ — дробной частью, sleep её
+# принимает). Проверки ищут его через `pgrep -f`, то есть ПО ВСЕЙ СИСТЕМЕ: с общей
+# длительностью «брокер», переживший прошлый прогон (упавший тест, ctrl-c, kill агента
+# мимо группы), валил бы каждый следующий — и отказ выглядел бы как регрессия агента,
+# хотя агент ни при чём. Поймано 21.09.2026 ровно так.
+B1="300.$$"
+B2="301.$$"
+B3="302.$$"
 cleanup() {
     [ -n "$AGENT_PID" ] && kill "$AGENT_PID" 2>/dev/null || true
     [ -n "$MOCK_PID" ] && kill "$MOCK_PID" 2>/dev/null || true
+    pkill -f "sleep 30[0-9]\.$$\$" 2>/dev/null || true
     rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -53,7 +62,7 @@ wait_for() { # wait_for <сек> <команда...>
 
 # ── 1. happy path: свежий JWT до старта брокера + ротация без рестарта ────────
 printf '{"access_token":"good-access","refresh_token":"good-refresh","expires_at":9999999999,"obtained_at":1}' >"$tmp/tokens.json"
-agent_start sleep 300
+agent_start sleep "$B1"
 
 wait_for 5 grep -q 'remote_password token=jwt-1' "$tmp/bridge.conf" \
     || { echo "FAIL: bridge.conf с jwt-1 не появился"; cat "$tmp/bridge.conf" 2>/dev/null; exit 1; }
@@ -73,24 +82,24 @@ wait_for 10 sh -c "grep -qE 'token=jwt-[2-9]' '$tmp/bridge.conf'" \
 # чистое завершение: TERM гасит и агента, и «брокер» (sleep)
 kill -TERM "$AGENT_PID"
 wait_for 5 sh -c "! kill -0 $AGENT_PID 2>/dev/null" || { echo "FAIL: агент не завершился"; exit 1; }
-pgrep -f "sleep 300" >/dev/null && { echo "FAIL: дочерний mosquitto (sleep) жив"; exit 1; }
+pgrep -f "sleep $B1" >/dev/null && { echo "FAIL: дочерний mosquitto (sleep) жив"; exit 1; }
 AGENT_PID=""
 
 # ── 2. протухший access + невалидный refresh → needs_relink, брокер живёт ────
 rm -f "$tmp/bridge.conf" "$tmp/status.json"
 printf '{"access_token":"stale-access","refresh_token":"dead-refresh","expires_at":9999999999,"obtained_at":1}' >"$tmp/tokens.json"
-agent_start sleep 301
+agent_start sleep "$B2"
 wait_for 5 sh -c "jq -e '.state == \"needs_relink\"' '$tmp/status.json' >/dev/null" \
     || { echo "FAIL: needs_relink не выставлен: $(cat "$tmp/status.json" 2>/dev/null)"; exit 1; }
 [ ! -f "$tmp/bridge.conf" ] || { echo "FAIL: bridge.conf не должен существовать"; exit 1; }
-wait_for 5 pgrep -f "sleep 301" >/dev/null || { echo "FAIL: брокер не стартовал при needs_relink"; exit 1; }
+wait_for 5 pgrep -f "sleep $B2" >/dev/null || { echo "FAIL: брокер не стартовал при needs_relink"; exit 1; }
 kill -TERM "$AGENT_PID"; wait "$AGENT_PID" 2>/dev/null || true
 AGENT_PID=""
 
 # ── 3. протухший access + валидный refresh → авто-восстановление ─────────────
 rm -f "$tmp/bridge.conf" "$tmp/status.json"
 printf '{"access_token":"stale-access","refresh_token":"good-refresh","expires_at":9999999999,"obtained_at":1}' >"$tmp/tokens.json"
-agent_start sleep 302
+agent_start sleep "$B3"
 wait_for 5 grep -q 'remote_password token=jwt-' "$tmp/bridge.conf" \
     || { echo "FAIL: 401→refresh→retry не сработал"; exit 1; }
 jq -e '.access_token == "good-access"' "$tmp/tokens.json" >/dev/null \

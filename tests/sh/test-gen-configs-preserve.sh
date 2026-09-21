@@ -88,4 +88,46 @@ assert d['permit_join'] is False
 assert d['mqtt']['password'] == 'newpass'
 assert d['serial']['port'] == '/dev/zigbee'
 PY
+
+# ── Случай, который стоил бы дома: старый конфиг МОЛЧИТ про идентичность сети ──────
+# Именно так выглядит живой хаб: ключи держатся NV координатора и database.db, в
+# configuration.yaml их нет. Шаблонное `network_key: GENERATE` в такой ситуации не
+# «сохраняет умолчание», а приказывает сделать новые ключи — то есть переформировать
+# сеть и обойти дом с перепариванием каждого прибора. Молчал старый — молчит новый.
+rm -rf "$tmp/data/zigbee2mqtt"; mkdir -p "$tmp/data/zigbee2mqtt"
+cat >"$tmp/data/zigbee2mqtt/configuration.yaml" <<'EOF2'
+homeassistant: false
+permit_join: false
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mqtt:1883
+  user: olduser
+  password: oldpass
+serial:
+  port: /dev/ttyACM0
+advanced:
+  log_level: warning
+  last_seen: ISO_8601
+devices:
+  '0x00158d000232033b':
+    friendly_name: lamp
+    retain: true
+EOF2
+
+FORCE=1 "$ROOT/scripts/gen-configs.sh" >/dev/null
+grep -q 'GENERATE' "$z2m" && { echo "FAIL: GENERATE навязан конфигу, который про ключи молчал"; exit 1; }
+
+python3 - "$z2m" <<'PY'
+import sys, yaml
+a = yaml.safe_load(open(sys.argv[1]))['advanced']
+for k in ('network_key', 'pan_id', 'ext_pan_id'):
+    assert k not in a, f'{k} появился там, где старый конфиг молчал: {a}'
+PY
+
+# ── И обратное: на ЧИСТОЙ установке ключи обязаны быть GENERATE ───────────────────
+# Без старого конфига беречь нечего, а дефолтный network_key z2m общеизвестен.
+rm -rf "$tmp/data/zigbee2mqtt"; mkdir -p "$tmp/data/zigbee2mqtt"
+"$ROOT/scripts/gen-configs.sh" >/dev/null
+grep -q 'network_key: GENERATE' "$z2m" || { echo "FAIL: чистая установка без GENERATE"; exit 1; }
+
 echo "ok"
