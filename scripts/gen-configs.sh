@@ -7,6 +7,7 @@
 #   deploy/mosquitto/conf.d/bridge.conf — static-режим; в oauth-режиме удаляется
 #       (динамический bridge.conf пишет token-agent внутри контейнера).
 . "$(dirname "$0")/lib/common.sh"
+. "$(dirname "$0")/lib/yaml-preserve.sh"
 require_cmd envsubst
 load_env
 
@@ -21,14 +22,41 @@ else
     [ -n "${LOCAL_MQTT_PASSWORD:-}" ] || die "LOCAL_MQTT_PASSWORD пуст — запустите: make env-init"
     [ -n "${Z2M_FRONTEND_AUTH_TOKEN:-}" ] || die "Z2M_FRONTEND_AUTH_TOKEN пуст — запустите: make env-init"
     backup_file "$z2m_conf"
+    prev=""
+    if [ -f "$z2m_conf" ]; then
+        prev="$(mktemp)"
+        cp "$z2m_conf" "$prev"
+    fi
+    # Схема конфига зависит от МАЖОРНОЙ версии образа: у 2.x есть `version: 4`,
+    # `homeassistant.enabled`, `frontend.enabled`; 1.x на них падает валидацией.
+    # Матрица совместимости до сих пор держит legacy-ветки на 1.x (старые прошивки,
+    # CC2531), поэтому шаблон выбирается, а не предполагается.
+    z2m_major="$(printf '%s' "${Z2M_IMAGE_TAG:-}" | sed -n 's/^\([0-9]\{1,\}\)\..*/\1/p')"
+    if [ "${z2m_major:-2}" -lt 2 ] 2>/dev/null; then
+        z2m_tmpl="$ROCKET_ROOT/templates/zigbee2mqtt.v1.yaml.tmpl"
+    else
+        z2m_tmpl="$ROCKET_ROOT/templates/zigbee2mqtt.yaml.tmpl"
+    fi
     # shellcheck disable=SC2016
     envsubst '$Z2M_BASE_TOPIC $LOCAL_MQTT_USER $LOCAL_MQTT_PASSWORD $Z2M_FRONTEND_PORT $Z2M_FRONTEND_AUTH_TOKEN' \
-        <"$ROCKET_ROOT/templates/zigbee2mqtt.yaml.tmpl" >"$z2m_conf"
+        <"$z2m_tmpl" >"$z2m_conf"
     # serial.adapter добавляем только когда семейство известно (пусто = автодетект z2m)
     if [ -n "${Z2M_ADAPTER:-}" ]; then
         sed -i "/^  port: \/dev\/zigbee$/a\\  adapter: ${Z2M_ADAPTER}" "$z2m_conf"
     fi
-    ok "zigbee2mqtt: configuration.yaml сгенерирован"
+    if [ -n "$prev" ]; then
+        # Переносим то, чем владеет z2m: устройства, группы, permit_join и сетевые
+        # параметры внутри advanced. Без этого FORCE=1 стирает сеть целиком.
+        sed -i '/^devices: {}$/d' "$z2m_conf"
+        preserve_network_identity "$prev" "$z2m_conf"
+        preserve_advanced_subkeys "$prev" "$z2m_conf"
+        preserve_top_level_blocks "$prev" "$z2m_conf"
+        kept="$(awk '/^devices:/{f=1} f&&/friendly_name/{n++} END{print n+0}' "$z2m_conf")"
+        ok "zigbee2mqtt: configuration.yaml перегенерирован (перенесено устройств: $kept)"
+        rm -f "$prev"
+    else
+        ok "zigbee2mqtt: configuration.yaml сгенерирован"
+    fi
 fi
 
 # ── мост mosquitto ─────────────────────────────────────────────────────────────
