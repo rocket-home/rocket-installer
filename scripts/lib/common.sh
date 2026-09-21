@@ -40,9 +40,15 @@ backup_file() {
 
 # docker compose с нашим env-файлом и compose-файлом.
 # COMPOSE_PROFILES приходит из .env (load_env) — управляет nodered.
+#
+# Имя проекта задаём ЯВНО. Без -p compose берёт basename каталога compose-файла, то есть
+# "deploy" для ЛЮБОЙ копии репо: вторая копия (тестовая, распакованный бэкап, ворктри)
+# молча делит с боевой контейнеры, сеть и volume mosquitto_dynamic — а в нём лежит
+# bridge.conf с чужим токеном, с которым агент сознательно стартует при недоступном облаке.
+COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-rocket-home}"
 compose() {
     require_cmd docker
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 # Загрузить .env в окружение текущего скрипта (без экспорта секретов дальше по цепочке).

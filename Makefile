@@ -6,7 +6,11 @@ ENV_FILE ?= $(ROOT)/.env
 export ROCKET_ROOT := $(ROOT)
 export ENV_FILE
 
-COMPOSE = docker compose --env-file $(ENV_FILE) -f $(ROOT)/deploy/docker-compose.yml
+# Имя проекта — явно (см. compose() в scripts/lib/common.sh): без -p им стало бы "deploy"
+# у любой копии репо, и копии делили бы контейнеры и volume.
+COMPOSE_PROJECT_NAME ?= rocket-home
+export COMPOSE_PROJECT_NAME
+COMPOSE = docker compose -p $(COMPOSE_PROJECT_NAME) --env-file $(ENV_FILE) -f $(ROOT)/deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
