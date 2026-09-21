@@ -85,14 +85,29 @@ else
 fi
 
 # ── Node.js (для TUI) ──────────────────────────────────────────────────────────
+# npm проверяем ОТДЕЛЬНО от node, а не заодно: в Debian/Ubuntu `nodejs` и `npm` — разные
+# пакеты, и машина с node из apt npm'а не имеет. Проверка одного лишь node говорила
+# «уже установлен — пропуск», а установка падала двадцатью строками ниже на `npm ci` —
+# с уже склонированным кодом, без зависимостей TUI и без симлинка rocket.
 node_ok() { command -v node >/dev/null 2>&1 && [ "$(node -e 'console.log(process.versions.node.split(".")[0])')" -ge 18 ]; }
-if node_ok; then
-    say "Node.js $(node --version) уже установлен — пропуск"
+npm_ok()  { command -v npm >/dev/null 2>&1; }
+if node_ok && npm_ok; then
+    say "Node.js $(node --version) и npm $(npm --version) уже установлены — пропуск"
+elif node_ok; then
+    # node устраивает — не трогаем его (им может пользоваться что-то ещё), ставим только npm
+    say "Node.js $(node --version) есть, npm нет — ставлю npm…"
+    $SUDO apt-get install -y -qq npm >/dev/null 2>&1 || true
+    npm_ok || {
+        warn "пакет npm недоступен — ставлю Node.js 22 LTS (NodeSource), он несёт npm с собой"
+        curl -fsSL https://deb.nodesource.com/setup_22.x | $SUDO bash - >/dev/null
+        $SUDO apt-get install -y -qq nodejs >/dev/null
+    }
 else
     say "устанавливаю Node.js 22 LTS (NodeSource)…"
     curl -fsSL https://deb.nodesource.com/setup_22.x | $SUDO bash - >/dev/null
     $SUDO apt-get install -y -qq nodejs >/dev/null
 fi
+npm_ok || die "npm так и не появился — поставьте вручную и повторите"
 
 # ── Группы ─────────────────────────────────────────────────────────────────────
 for grp in docker dialout; do
