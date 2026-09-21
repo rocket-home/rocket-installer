@@ -88,14 +88,28 @@ fetch_jwt() {
     access="$(tokens_get access_token)"
     [ -n "$access" ] || return 1
     attempt=0
+    # Локация берётся из .env, если закреплена: дефолтный /api/mqtt/v1/token при аккаунте
+    # без локаций СОЗДАЁТ новую («Дом») и хаб тихо уезжает на чужой mount point.
+    if [ -n "${CLOUD_LOCATION_ID:-}" ]; then
+        token_url="$API_BASE_URL/api/mqtt/v1/locations/$CLOUD_LOCATION_ID/token"
+    else
+        token_url="$API_BASE_URL/api/mqtt/v1/token"
+    fi
     while :; do
         http_call -H "Authorization: Bearer $access" \
-            -H 'Accept: application/json' "$API_BASE_URL/api/mqtt/v1/token" || return 2
+            -H 'Accept: application/json' "$token_url" || return 2
         case "$code" in
             200)
                 JWT="$(printf '%s' "$body" | jq -r '.token // empty')"
                 LOCATION_ID="$(printf '%s' "$body" | jq -r '.locationId // empty')"
                 [ -n "$JWT" ] || return 2
+                # Расхождение с закреплённой локацией — это не «подстроиться», а отказ:
+                # опубликовать дом под чужим mount point хуже, чем остаться без моста.
+                if [ -n "${CLOUD_LOCATION_ID:-}" ] && [ -n "$LOCATION_ID" ] \
+                   && [ "$LOCATION_ID" != "$CLOUD_LOCATION_ID" ]; then
+                    status wrong_location "выдан токен локации $LOCATION_ID вместо $CLOUD_LOCATION_ID"
+                    return 1
+                fi
                 return 0 ;;
             401)
                 # ровно один refresh + retry (как milafire)

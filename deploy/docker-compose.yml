@@ -30,6 +30,7 @@ services:
       - CLOUD_BRIDGE_PROTOCOL=${CLOUD_BRIDGE_PROTOCOL:-mqttv311}
       - API_BASE_URL=${API_BASE_URL:-https://rocket-home.ru}
       - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+      - CLOUD_LOCATION_ID=${CLOUD_LOCATION_ID:-}
     restart: unless-stopped
     logging: *default-logging
     # $SYS/broker/version retained → ответ мгновенный; брокер требует auth.

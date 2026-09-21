@@ -70,6 +70,39 @@ while :; do
         '{access_token:$a, refresh_token:$r, expires_at:$exp, obtained_at:$at}' \
         >"$TOKENS_FILE.tmp" && mv "$TOKENS_FILE.tmp" "$TOKENS_FILE"
     ok "Линковка выполнена — токены в secrets/tokens.json"
+
+    # Закрепляем локацию. Без неё token-agent ходит на /api/mqtt/v1/token «по умолчанию»,
+    # а тот при аккаунте без локаций СОЗДАЁТ новую («Дом») — хаб молча уедет на чужой
+    # mount point. Список берём из identity (scope rh.profile:read уже в гранте), чтобы
+    # не создать локацию самим запросом.
+    me="$(curl -sS -m 15 -H "Authorization: Bearer $access" -H 'Accept: application/json' \
+        "$API_BASE_URL/api/identity/v1/me" 2>/dev/null || true)"
+    loc_count="$(jq -r '(.allowedLocations // []) | length' <<<"$me" 2>/dev/null || echo 0)"
+    current="$(env_get CLOUD_LOCATION_ID)"
+
+    if [ -n "$current" ]; then
+        if [ "$loc_count" -gt 0 ] && ! jq -e --arg id "$current" \
+            '(.allowedLocations // []) | any(.id == $id)' >/dev/null <<<"$me"; then
+            warn "в .env закреплена локация $current, но грант её не содержит — мост не встанет"
+            warn "проверьте: make env-set KEY=CLOUD_LOCATION_ID VALUE=<id из списка ниже>"
+            jq -r '(.allowedLocations // [])[] | "  \(.id)  \(.title)"' <<<"$me" 2>/dev/null || true
+        else
+            ok "локация уже закреплена: $current"
+        fi
+    elif [ "$loc_count" = "1" ]; then
+        loc_id="$(jq -r '.allowedLocations[0].id' <<<"$me")"
+        loc_title="$(jq -r '.allowedLocations[0].title // ""' <<<"$me")"
+        "$ROCKET_ROOT/scripts/env-set.sh" CLOUD_LOCATION_ID "$loc_id"
+        ok "локация закреплена: $loc_title ($loc_id)"
+    elif [ "$loc_count" -gt 1 ]; then
+        warn "в гранте несколько локаций — выберите, к какой привязан этот хаб:"
+        jq -r '(.allowedLocations // [])[] | "  \(.id)  \(.title)"' <<<"$me"
+        warn "затем: make env-set KEY=CLOUD_LOCATION_ID VALUE=<id>"
+    else
+        warn "не удалось получить список локаций — закрепите вручную:"
+        warn "  make env-set KEY=CLOUD_LOCATION_ID VALUE=<id локации>"
+    fi
+
     log "Применение к работающему стеку: перезапуск моста (make relink делает это сам)."
     exit 0
 done
