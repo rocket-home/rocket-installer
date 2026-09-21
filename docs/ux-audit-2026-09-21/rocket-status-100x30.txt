@@ -1,0 +1,30 @@
+rocket-home-mqtt-1          rocket-home-mqtt            "/entrypoint.sh /usr…"   mqtt          4 min
+utes ago   Up 3 minutes (healthy)   0.0.0.0:1883->1883/tcp, [::]:1883->1883/tcp
+rocket-home-zigbee2mqtt-1   koenkk/zigbee2mqtt:1.42.0   "docker-entrypoint.s…"   zigbee2mqtt   3 min
+utes ago   Up 3 minutes (healthy)   0.0.0.0:4000->4000/tcp, [::]:4000->4000/tcp
+
+── Мост в облако (mq.rocket-home.ru:8883, oauth) ──
+✔ мост подключён
+token-agent: ok (), обновлён 2026-09-21T11:29:21Z
+access-токен: истекает 2027-07-10
+
+── zigbee2mqtt ─────────────────────────────────────────────
+✔ фронт: http://<ip-хаба>:4000/  (auth_token: <скрыт>)
+│
+◆  status: OK
+│
+◆  rocket
+│  ● Статус (контейнеры, мост, токены, фронт)
+│  ○ Логи
+│  ○ Permit join
+│  ○ Обновить zigbee2mqtt
+│  ○ Переподключить облако
+│  ○ Doctor
+│  ○ Бэкапы
+│  ○ Настройки: стик
+│  ○ Настройки: облако
+│  ○ Настройки: Node-RED
+│  ○ Установка (визард)
+│  ○ Выход
+└
+
