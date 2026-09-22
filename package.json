@@ -1,6 +1,6 @@
 {
   "name": "rocket-installer",
-  "version": "0.1.0",
+  "version": "0.2.4",
   "description": "Установщик и менеджер zigbee2mqtt + MQTT-моста для rocket-home.ru",
   "type": "module",
   "private": true,
