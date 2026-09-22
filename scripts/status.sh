@@ -35,7 +35,9 @@ fi
 
 log ""
 log "── zigbee2mqtt ─────────────────────────────────────────────"
-if curl -fsS -m 3 -o /dev/null "http://localhost:${Z2M_FRONTEND_PORT}/"; then
+if ! zigbee_enabled; then
+    log "не предусмотрен: стик не задан (узел работает мостом в облако)"
+elif curl -fsS -m 3 -o /dev/null "http://localhost:${Z2M_FRONTEND_PORT}/"; then
     ok "фронт: http://$(hostname -I 2>/dev/null | awk '{print $1}'):${Z2M_FRONTEND_PORT}/  (auth_token: ${Z2M_FRONTEND_AUTH_TOKEN})"
 else
     warn "фронт z2m недоступен на :${Z2M_FRONTEND_PORT}"

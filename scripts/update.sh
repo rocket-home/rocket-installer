@@ -8,6 +8,7 @@ require_cmd jq
 load_env
 
 current="$Z2M_IMAGE_TAG"
+current_adapter="${Z2M_ADAPTER:-}"   # запоминаем ДО env-set: ниже сравниваем, менялся ли адаптер
 
 if [ -n "${TAG:-}" ]; then
     target="$TAG"
@@ -39,8 +40,12 @@ else
     "$ROCKET_ROOT/scripts/env-set.sh" Z2M_ADAPTER "$adapter"
 fi
 
-if [ "$target" = "$current" ]; then
-    ok "уже на рекомендуемой версии: $current"
+# Выйти можно только если совпал И тег, И адаптер: env-set Z2M_ADAPTER выше уже случился, а
+# строку `adapter:` в configuration.yaml пишет лишь gen-configs. Прежний ранний выход оставлял
+# хаб с новым адаптером в .env и старым (или отсутствующим) в конфиге — z2m 2.x с таким не
+# стартует вовсе.
+if [ "$target" = "$current" ] && [ "${adapter:-$current_adapter}" = "$current_adapter" ]; then
+    ok "уже на рекомендуемой версии: $current (адаптер: ${current_adapter:-автодетект})"
     exit 0
 fi
 
@@ -49,9 +54,19 @@ log "бэкап перед обновлением…"
 "$ROCKET_ROOT/scripts/backup.sh"
 
 "$ROCKET_ROOT/scripts/env-set.sh" Z2M_IMAGE_TAG "$target"
+
+# Конфиг — часть обновления, а не побочный эффект. Строку `adapter:` в configuration.yaml
+# пишет ТОЛЬКО gen-configs (gen-configs.sh), а схема файла зависит от мажорной версии образа.
+# Без этого шага z2m 2.x отказывается стартовать: "USB adapter discovery error (No valid USB
+# adapter found)" — прогон 21.09.2026, руками лечилось FORCE=1 make gen-configs.
+# FORCE=1 безопасен: устройства, группы и идентичность сети переносятся (lib/yaml-preserve.sh,
+# тест tests/sh/test-gen-configs-preserve.sh), прежний файл остаётся рядом как .bak-<ts>.
+FORCE=1 "$ROCKET_ROOT/scripts/gen-configs.sh"
+
 compose up -d --build --force-recreate
 "$ROCKET_ROOT/scripts/smoke-cloud.sh" || {
-    err "smoke после обновления не прошёл; откат: make env-set KEY=Z2M_IMAGE_TAG VALUE=$current && make up"
+    err "smoke после обновления не прошёл; откат: make env-set KEY=Z2M_IMAGE_TAG VALUE=$current && FORCE=1 make gen-configs && make up"
+    err "прежний configuration.yaml — рядом: data/zigbee2mqtt/configuration.yaml.bak-<время>"
     err "данные до обновления — в свежем архиве backups/ (make restore ARCHIVE=...)"
     exit 1
 }

@@ -32,7 +32,11 @@ if id -nG | tr ' ' '\n' | grep -qx dialout; then pass "пользователь 
 log "── Docker и контейнеры ──"
 if docker info >/dev/null 2>&1; then
     pass "docker живой"
-    for svc in mqtt zigbee2mqtt; do
+    # На узле без стика z2m не поднимается по замыслу (профиль zigbee выключен) — требовать
+    # его running значило бы красить доктора в красный на исправном мосте.
+    svcs="mqtt"
+    zigbee_enabled && svcs="$svcs zigbee2mqtt"
+    for svc in $svcs; do
         st="$(compose ps --format '{{.State}}' "$svc" 2>/dev/null | head -1)"
         if [ "$st" = "running" ]; then pass "контейнер $svc: running"; else failm "контейнер $svc: ${st:-не запущен} (make up)"; fi
     done

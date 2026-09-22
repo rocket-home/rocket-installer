@@ -44,12 +44,34 @@ else
     log "2/3 мост выключен (CLOUD_AUTH_MODE=off) — пропуск"
 fi
 
-log "3/3 фронт zigbee2mqtt…"
-if curl -fsS -m 10 --retry 6 --retry-delay 5 --retry-connrefused -o /dev/null "http://localhost:${Z2M_FRONTEND_PORT}/"; then
-    ok "фронт отвечает: http://<ip-машины>:${Z2M_FRONTEND_PORT}/ (токен: см. make status)"
+if ! zigbee_enabled; then
+    log "3/3 zigbee2mqtt на этом узле не предусмотрен (стик не задан) — пропуск"
 else
-    err "фронт z2m не отвечает (make logs SERVICE=zigbee2mqtt; частая причина — стик недоступен)"
-    fail=1
+    z2m_timeout="${SMOKE_Z2M_TIMEOUT:-180}"
+    log "3/3 zigbee2mqtt… ждём готовности контейнера (до ${z2m_timeout}с)"
+    rc=0
+    wait_healthy zigbee2mqtt "$z2m_timeout" || rc=$?
+    case "$rc" in
+        0)
+            # healthcheck живёт ВНУТРИ контейнера (127.0.0.1) и ничего не знает о пробросе
+            # порта на хост — один честный запрос снаружи всё равно делаем.
+            if curl -fsS -m 10 --retry 3 --retry-delay 2 -o /dev/null "http://localhost:${Z2M_FRONTEND_PORT}/"; then
+                ok "фронт отвечает: http://<ip-машины>:${Z2M_FRONTEND_PORT}/ (токен: см. make status)"
+            else
+                err "контейнер z2m здоров, но порт ${Z2M_FRONTEND_PORT} не отвечает с хоста (проброс портов / файрвол)"
+                fail=1
+            fi
+            ;;
+        2)
+            err "контейнер z2m упал или перезапускается: make logs SERVICE=zigbee2mqtt"
+            err "  частые причины: стик занят или недоступен, неверный serial.adapter (make update)"
+            fail=1
+            ;;
+        *)
+            err "z2m не стал healthy за ${z2m_timeout}с: make logs SERVICE=zigbee2mqtt"
+            fail=1
+            ;;
+    esac
 fi
 
 if [ "$fail" -eq 0 ]; then

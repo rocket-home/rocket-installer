@@ -37,7 +37,13 @@ else
     else
         z2m_tmpl="$ROCKET_ROOT/templates/zigbee2mqtt.yaml.tmpl"
     fi
+    # envsubst — дочерний процесс: переменные передаём ему ЯВНО, потому что load_env больше
+    # не экспортирует .env в окружение (см. комментарий к load_env). Список в префиксе обязан
+    # совпадать со списком в аргументе envsubst.
     # shellcheck disable=SC2016
+    Z2M_BASE_TOPIC="${Z2M_BASE_TOPIC:-}" LOCAL_MQTT_USER="${LOCAL_MQTT_USER:-}" \
+    LOCAL_MQTT_PASSWORD="${LOCAL_MQTT_PASSWORD:-}" Z2M_FRONTEND_PORT="${Z2M_FRONTEND_PORT:-}" \
+    Z2M_FRONTEND_AUTH_TOKEN="${Z2M_FRONTEND_AUTH_TOKEN:-}" \
     envsubst '$Z2M_BASE_TOPIC $LOCAL_MQTT_USER $LOCAL_MQTT_PASSWORD $Z2M_FRONTEND_PORT $Z2M_FRONTEND_AUTH_TOKEN' \
         <"$z2m_tmpl" >"$z2m_conf"
     # serial.adapter добавляем только когда семейство известно (пусто = автодетект z2m)
@@ -66,7 +72,11 @@ case "${CLOUD_AUTH_MODE:-oauth}" in
         [ -n "${CLOUD_MQTT_USERNAME:-}" ] && [ -n "${CLOUD_MQTT_PASSWORD:-}" ] \
             || die "static-режим: заполните CLOUD_MQTT_USERNAME/CLOUD_MQTT_PASSWORD (rocket-home.ru/profile/mqtt)"
         backup_file "$bridge_conf"
+        # Явный экспорт для дочернего envsubst — см. комментарий у первого вызова выше.
         # shellcheck disable=SC2016
+        CLOUD_MQTT_HOST="${CLOUD_MQTT_HOST:-}" CLOUD_MQTT_PORT="${CLOUD_MQTT_PORT:-}" \
+        CLOUD_BRIDGE_PROTOCOL="${CLOUD_BRIDGE_PROTOCOL:-}" \
+        CLOUD_MQTT_USERNAME="${CLOUD_MQTT_USERNAME:-}" CLOUD_MQTT_PASSWORD="${CLOUD_MQTT_PASSWORD:-}" \
         envsubst '$CLOUD_MQTT_HOST $CLOUD_MQTT_PORT $CLOUD_BRIDGE_PROTOCOL $CLOUD_MQTT_USERNAME $CLOUD_MQTT_PASSWORD' \
             <"$ROCKET_ROOT/templates/bridge-static.conf.tmpl" >"$bridge_conf"
         chmod 600 "$bridge_conf"
