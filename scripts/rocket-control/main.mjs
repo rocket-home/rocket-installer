@@ -1,7 +1,8 @@
 // rocket TUI — action-first меню (по образцу infra-control/main.mjs).
 // TUI — тонкая оболочка над make: каждый пункт печатает и вызывает make-цель.
-import { intro, outro, select, note, log } from "./io.mjs";
+import { intro, outro, cancel, select, note, log } from "./io.mjs";
 import { ensure, Cancelled } from "./prompts.mjs";
+import { EXIT } from "./lib/exit-codes.mjs";
 import { envExists, readEnv } from "./lib/env.mjs";
 import { wizardSetup } from "./wizards/setup.mjs";
 import {
@@ -52,15 +53,30 @@ export async function runRocket(argv = []) {
   intro("rocket — Rocket Home hub");
 
   if (argv.includes("--wizard")) {
-    const ok = await wizardSetup();
-    outro(ok ? "Установка завершена." : "Установка не завершена.");
-    process.exitCode = ok ? 0 : 1;
+    try {
+      const ok = await wizardSetup();
+      outro(ok ? "Установка завершена." : "Установка не завершена.");
+      process.exitCode = ok ? EXIT.OK : EXIT.FAILED;
+    } catch (e) {
+      if (!(e instanceof Cancelled)) throw e;
+      cancel("Установка отменена — продолжить позже: rocket");
+      process.exitCode = EXIT.CANCELLED;
+    }
     return;
   }
 
   if (!envExists()) {
     note("Конфигурация не найдена — начнём с визарда установки.", "Первый запуск");
-    await wizardSetup();
+    try {
+      await wizardSetup();
+    } catch (e) {
+      if (!(e instanceof Cancelled)) throw e;
+      // Без этого Ctrl+C на первом запуске вылетал из runRocket в top-level await —
+      // тот самый безмолвный выход, который снаружи выглядел как падение.
+      cancel("Установка отменена — продолжить позже: rocket");
+      process.exitCode = EXIT.CANCELLED;
+      return;
+    }
   } else {
     const env = readEnv();
     note(

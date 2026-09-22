@@ -17,6 +17,8 @@ export function reset({ answers = [], makeExitCode = 0, makeStdout = "", envFile
   state.logs = [];
   state.makeExitCode = makeExitCode;
   state.makeStdout = makeStdout;
+  // makeExitByTarget: {target: code} — уронить конкретную цель, не трогая остальные
+  state.makeExitByTarget = {};
   // makeStdoutByTarget: {target: stdout} — разные JSON-ответы на разные цели
   state.makeStdoutByTarget = {};
   // содержимое .env, которое видит TUI через lib/env.mjs
@@ -64,12 +66,12 @@ export function installMocks() {
     namedExports: {
       runMake: async (target, options = {}) => {
         state.makeCalls.push({ target, ...options });
-        return { code: state.makeExitCode };
+        return { code: state.makeExitByTarget[target] ?? state.makeExitCode };
       },
       runMakeCapture: async (target, options = {}) => {
         state.makeCalls.push({ target, ...options, captured: true });
         const stdout = state.makeStdoutByTarget[target] ?? state.makeStdout;
-        return { code: state.makeExitCode, stdout };
+        return { code: state.makeExitByTarget[target] ?? state.makeExitCode, stdout };
       },
       formatMakeCommand: (target, extraArgs = []) =>
         ["make", target, ...extraArgs].join(" "),

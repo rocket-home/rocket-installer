@@ -154,11 +154,37 @@ if [ "$HEADLESS" = "1" ]; then
     exit 0
 fi
 
-say "запускаю визард первичной настройки…"
-# docker-группа ещё не действует в этой сессии — компенсируем sg docker, если надо
-if docker info >/dev/null 2>&1; then
-    make -C "$INSTALL_DIR" setup
-else
-    sg docker -c "make -C '$INSTALL_DIR' setup" \
-        || die "docker недоступен: перелогиньтесь и запустите: rocket"
+# Мастер интерактивен. Если терминала нет вовсе (cron, ssh без -t, provisioning-скрипт) —
+# это не авария: код установлен, команда rocket заведена, просто настройку делают позже.
+# Проверяем через открытие /dev/tty, а НЕ через `exec </dev/tty`: при `curl | bash` bash
+# дочитывает текст этого скрипта из fd 0, и глобальный редирект украл бы у него остаток.
+if ! { [ -t 0 ] || : </dev/tty; } 2>/dev/null; then
+    warn "нет управляющего терминала — визард пропущен (установка при этом завершена)"
+    say "настройте позже:  rocket        # или: cd $INSTALL_DIR && make setup"
+    say "либо без мастера: cd $INSTALL_DIR && make env-init && \$EDITOR .env && make gen-configs up smoke"
+    exit 0
 fi
+
+# Docker проверяем ОТДЕЛЬНО от визарда. Раньше `|| die "docker недоступен"` висел на всём
+# запуске мастера, поэтому любой его ненулевой код приписывался докеру: пользователь читал
+# «перелогиньтесь», хотя docker был исправен, а мастер падал совсем по другой причине.
+if docker info >/dev/null 2>&1; then
+    wizard_cmd=("$INSTALL_DIR/bin/rocket" --wizard)          # группа docker уже действует
+elif sg docker -c 'docker info' >/dev/null 2>&1; then
+    wizard_cmd=(sg docker -c "'$INSTALL_DIR/bin/rocket' --wizard")   # компенсируем группу
+else
+    die "docker недоступен: перелогиньтесь и запустите: rocket"
+fi
+
+say "запускаю визард первичной настройки…"
+say "эквивалент вручную: cd $INSTALL_DIR && make setup"
+# Зовём bin/rocket, а не `make setup`: make схлопывает ЛЮБОЙ код рецепта в свой 2, и коды
+# «нет терминала» (3) и «отменено пользователем» (130) до нас бы не доехали.
+rc=0
+"${wizard_cmd[@]}" || rc=$?
+case "$rc" in
+    0)   say "готово." ;;
+    3)   die "нет терминала для мастера: запустите его сами — rocket (или переустановите с --headless)" ;;
+    130) warn "установка отменена — продолжить: rocket"; exit 130 ;;
+    *)   die "визард завершился с ошибкой (код $rc) — подробности выше; повторить: rocket" ;;
+esac

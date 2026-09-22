@@ -1,7 +1,13 @@
 // Визард первичной установки: стик → прошивка → тег z2m → облако → аддоны →
 // конфиги → запуск → smoke. Каждый шаг печатает make-эквивалент и пропускаем.
 import { note, log, select, confirm, text } from "../io.mjs";
-import { ensure, promptDangerous, runMakeStep, Cancelled } from "../prompts.mjs";
+import {
+  ensure,
+  promptDangerous,
+  runMakeStep,
+  captureJsonStep as captureJson,
+  Cancelled,
+} from "../prompts.mjs";
 import { runMakeCapture, formatMakeCommand } from "../lib/make.mjs";
 import { readEnv } from "../lib/env.mjs";
 import { realpathSync } from "node:fs";
@@ -15,17 +21,6 @@ async function envSet(key, value) {
   log.step(`→ ${formatMakeCommand("env-set", [`KEY=${key}`, "VALUE=…"])}`);
   const { code } = await runMakeCapture("env-set", { extraArgs: args });
   if (code !== 0) throw new Error(`env-set ${key}: exit ${code}`);
-}
-
-async function captureJson(target, options = {}) {
-  log.step(`→ ${formatMakeCommand(target, options.extraArgs ?? [])}`);
-  const { code, stdout } = await runMakeCapture(target, options);
-  if (code !== 0) return null;
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    return null;
-  }
 }
 
 async function stepTools() {
@@ -250,7 +245,16 @@ async function stepSmoke() {
       .join("\n"),
     "Готово",
   );
-  return code === 0;
+  // Шаг 9 — отчётный: стек уже поднят, всё установлено. Красная проверка означает «что-то
+  // ещё не отвечает», а не «установка не состоялась», и прежний `return false` печатал
+  // «Визард остановлен … перезапустить: make setup» — неправду с вредным советом (повторный
+  // мастер вместо make smoke). Проверено 21.09.2026: smoke краснел, пока поднимался z2m 2.6.
+  if (code !== 0) {
+    log.warn(
+      "Проверка не прошла — стек поднят, но что-то не отвечает. Повторить: make smoke; диагностика: make doctor.",
+    );
+  }
+  return true;
 }
 
 export async function wizardSetup() {
@@ -277,8 +281,10 @@ export async function wizardSetup() {
     return true;
   } catch (e) {
     if (e instanceof Cancelled) {
+      // Отмену пробрасываем дальше: снаружи она должна отличаться от технического отказа
+      // (код 130 против 1), иначе install.sh не может сказать пользователю, что произошло.
+      // Возврат false остаётся за исходами «шаг не выполнен» — на него опираются тесты.
       log.warn("Визард отменён.");
-      return false;
     }
     throw e;
   }

@@ -15,15 +15,42 @@ function dropRawMode() {
   }
 }
 
-function spawnMake(target, { env = {}, extraArgs = [], stdio }) {
-  const mergedEnv = { ...process.env };
-  for (const [k, v] of Object.entries(env)) {
-    if (v !== undefined) mergedEnv[k] = String(v);
+// Переменные, которыми родительский make «заражает» потомков. Главная — MAKELEVEL: увидев её,
+// GNU Make считает себя под-make и сам включает -w, то есть печатает `make[1]: Entering
+// directory …` в STDOUT — ровно туда, откуда мы читаем JSON целей detect-device/detect-firmware/
+// resolve-tag. Мастер запускается целью `make setup`, поэтому под make он оказывается всегда:
+// список стиков выходил пустым, прошивка «не определилась», тег откатывался на консервативный —
+// и всё это молча, как будто железа просто нет.
+//
+// Вырезать баннер из вывода нельзя: он локализован (в ru-локали это «Вход в каталог») и в
+// принципе неотличим от данных. Чиним источник — не отдаём потомку чужие make-переменные.
+const INHERITED_MAKE_VARS = [
+  "MAKELEVEL",
+  "MAKEFLAGS",
+  "MFLAGS",
+  "GNUMAKEFLAGS",
+  "MAKE_TERMOUT",
+  "MAKE_TERMERR",
+];
+
+/** Окружение для дочернего make: копия base без унаследованных make-переменных + overrides.
+ *  Экспортируется ради теста — spawn изнутри не наблюдаем. */
+export function childEnv(base = process.env, overrides = {}) {
+  const env = { ...base };
+  for (const k of INHERITED_MAKE_VARS) delete env[k];
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v !== undefined) env[k] = String(v);
   }
-  return spawn("make", [target, ...extraArgs], {
+  return env;
+}
+
+function spawnMake(target, { env = {}, extraArgs = [], stdio }) {
+  // --no-print-directory — ремень к подтяжкам: `make -C <dir>` включает -w даже на нулевом
+  // уровне, то есть баннер может прийти и без MAKELEVEL в окружении.
+  return spawn("make", ["--no-print-directory", target, ...extraArgs], {
     cwd: REPO_ROOT,
     stdio,
-    env: mergedEnv,
+    env: childEnv(process.env, env),
   });
 }
 

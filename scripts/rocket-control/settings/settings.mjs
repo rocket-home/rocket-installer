@@ -1,7 +1,7 @@
 // Настройки: стик / облако / аддоны. Меняют .env через make env-set,
 // затем предлагают make gen-configs + make up.
 import { select, confirm, text, note, log } from "../io.mjs";
-import { ensure, runMakeStep } from "../prompts.mjs";
+import { ensure, runMakeStep, captureJsonStep } from "../prompts.mjs";
 import { runMakeCapture, formatMakeCommand } from "../lib/make.mjs";
 import { readEnv } from "../lib/env.mjs";
 
@@ -26,9 +26,16 @@ async function offerApply() {
 }
 
 export async function settingsDevice() {
-  const found = JSON.parse(
-    (await runMakeCapture("detect-device")).stdout || "[]",
-  );
+  // Раньше тут был голый JSON.parse: сломанный вывод make улетал SyntaxError'ом в общий
+  // обработчик меню и выглядел как падение TUI. Теперь неудача объясняет себя и не мешает
+  // задать путь руками.
+  const found = (await captureJsonStep("detect-device")) ?? [];
+  if (found.length === 0) {
+    note(
+      "Стики не найдены. Путь можно задать вручную: make env-set KEY=ZIGBEE_DEVICE_HOST VALUE=/dev/ttyUSB0",
+      "Ничего не найдено",
+    );
+  }
   const options = found.map((d) => ({
     value: d,
     label: `${d.path}${d.description ? ` — ${d.description}` : ""}`,
