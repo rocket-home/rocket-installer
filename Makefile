@@ -10,7 +10,10 @@ export ENV_FILE
 # у любой копии репо, и копии делили бы контейнеры и volume.
 COMPOSE_PROJECT_NAME ?= rocket-home
 export COMPOSE_PROJECT_NAME
-COMPOSE = docker compose -p $(COMPOSE_PROJECT_NAME) --env-file $(ENV_FILE) -f $(ROOT)/deploy/docker-compose.yml
+# Через scripts/compose.sh, а не напрямую: имя проекта, env-файл и — главное — набор
+# активных профилей (профиль zigbee включается по наличию стика) считает compose() в
+# scripts/lib/common.sh. Своя строка здесь означала бы второй, расходящийся набор сервисов.
+COMPOSE = $(ROOT)/scripts/compose.sh
 
 .DEFAULT_GOAL := help
 

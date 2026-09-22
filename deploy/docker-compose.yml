@@ -42,6 +42,13 @@ services:
       start_period: 10s
 
   zigbee2mqtt:
+    # Профиль zigbee включается автоматически, когда в .env указан существующий стик
+    # (zigbee_enabled/compose_profiles в scripts/lib/common.sh). Без профиля docker ВСЕГДА
+    # пытался смапить devices: и падал на узле-мосте — "error gathering device information
+    # … no such file or directory", `make up` → 1, хотя SKIP_DEVICE_CHECK=1 обещает поднять
+    # только мост в облако. Вручную, без make: COMPOSE_PROFILES=zigbee docker compose …
+    profiles:
+      - zigbee
     image: koenkk/zigbee2mqtt:${Z2M_IMAGE_TAG:-1.42.0}
     ports:
       - "${Z2M_FRONTEND_PORT:-4000}:${Z2M_FRONTEND_PORT:-4000}"
