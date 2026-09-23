@@ -50,6 +50,11 @@ else
     if [ -n "${Z2M_ADAPTER:-}" ]; then
         sed -i "/^  port: \/dev\/zigbee$/a\\  adapter: ${Z2M_ADAPTER}" "$z2m_conf"
     fi
+    # transmit_power понимают Z-Stack и ember; deconz и zigate — нет. Убираем вместе с
+    # комментарием: описание ключа, которого в файле нет, только сбивает с толку.
+    case "${Z2M_ADAPTER:-}" in
+        deconz|zigate) sed -i '/^  # Мощность передатчика/,/^  transmit_power:/d' "$z2m_conf" ;;
+    esac
     if [ -n "$prev" ]; then
         # Переносим то, чем владеет z2m: устройства, группы, permit_join и сетевые
         # параметры внутри advanced. Без этого FORCE=1 стирает сеть целиком.

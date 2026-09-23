@@ -111,6 +111,26 @@ permit-join-on: ## Открыть сеть для подключения уст�
 permit-join-off: ## Закрыть сеть
 	@$(ROOT)/scripts/permit-join.sh off
 
+.PHONY: pair-watch
+pair-watch: ## Живой поток событий сопряжения (окно, вход, интервью): make pair-watch [TIME=сек]
+	@$(ROOT)/scripts/pair-watch.sh $(or $(TIME),0)
+
+.PHONY: z2m-log
+z2m-log: ## Уровень лога z2m без рестарта: make z2m-log LEVEL=debug|info|warning|error
+	@$(ROOT)/scripts/z2m-set.sh log "$(LEVEL)"
+
+.PHONY: z2m-tx-power
+z2m-tx-power: ## Мощность передатчика координатора, дБм (потом make z2m-restart): make z2m-tx-power DBM=20
+	@$(ROOT)/scripts/z2m-set.sh tx-power "$(DBM)"
+
+.PHONY: z2m-unblock
+z2m-unblock: ## Убрать прибор из чёрного списка z2m: make z2m-unblock IEEE=0x…|all
+	@$(ROOT)/scripts/z2m-set.sh unblock "$(IEEE)"
+
+.PHONY: z2m-restart
+z2m-restart: ## Перезапустить только zigbee2mqtt (после настроек, требующих рестарта)
+	@$(COMPOSE) restart zigbee2mqtt
+
 .PHONY: update
 update: ## Обновить zigbee2mqtt по матрице: stop z2m → probe → resolve → backup → up
 	@$(ROOT)/scripts/update.sh

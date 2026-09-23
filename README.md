@@ -44,6 +44,9 @@ make gen-configs   # рендер конфигов (с бэкапами .bak-*)
 make up            # запуск стека (up -d --build --force-recreate)
 make smoke         # сквозная проверка: локальный брокер → мост → облако
 make doctor        # диагностика
+make permit-join-on TIME=254   # открыть сеть для сопряжения
+make pair-watch    # события сопряжения живьём: окно, вход, интервью (Ctrl+C — выход)
+make z2m-log LEVEL=debug       # уровень лога z2m без рестарта
 rocket             # TUI-менеджер (статус, логи, permit join, обновление, бэкапы)
 ```
 

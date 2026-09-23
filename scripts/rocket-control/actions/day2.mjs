@@ -41,9 +41,16 @@ export async function actionPermitJoin() {
       options: [
         { value: "on", label: "Открыть для подключения устройств", hint: "автозакрытие по таймеру" },
         { value: "off", label: "Закрыть" },
+        { value: "watch", label: "Наблюдать за сопряжением", hint: "вход, интервью, окно; Ctrl+C — выход" },
       ],
     }),
   );
+  if (mode === "watch") {
+    // Без ограничения по времени: наблюдение прерывает сам пользователь.
+    const { code } = await runMakeStep("pair-watch");
+    reportMakeExit("pair-watch", code, log);
+    return;
+  }
   if (mode === "on") {
     const time = ensure(
       await text({
