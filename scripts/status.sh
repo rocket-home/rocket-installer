@@ -22,6 +22,7 @@ if [ "${CLOUD_AUTH_MODE}" = "oauth" ]; then
     if [ -f "$agent" ]; then
         log "token-agent: $(jq -r '"\(.state) (\(.detail // "-")), обновлён \(.updated_at | todate)"' "$agent" 2>/dev/null || cat "$agent")"
         [ "$(jq -r .state "$agent" 2>/dev/null)" = "needs_relink" ] && warn "нужна повторная линковка: make relink"
+        [ "$(jq -r .state "$agent" 2>/dev/null)" = "refresh_pending" ] && warn "обновление гранта моста откладывается (сеть/облако), агент повторит сам"
     else
         warn "agent-status.json ещё не создан (контейнер mqtt не запускался?)"
     fi

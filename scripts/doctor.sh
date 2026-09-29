@@ -70,6 +70,8 @@ case "${CLOUD_AUTH_MODE:-oauth}" in
             case "$st" in
                 ok) pass "token-agent: ok" ;;
                 needs_relink) failm "token-agent: нужна повторная линковка (make relink)" ;;
+                wrong_location) failm "token-agent: облако выдало токен другой локации ($(jq -r '.detail // ""' "$agent"))" ;;
+                refresh_pending) warn "token-agent: обновление гранта откладывается — $(jq -r '.detail // ""' "$agent") (мост работает, агент повторит сам)" ;;
                 *) warn "token-agent: $st" ;;
             esac
         fi

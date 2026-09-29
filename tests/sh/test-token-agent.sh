@@ -16,6 +16,12 @@ AGENT_PID=""
 B1="300.$$"
 B2="301.$$"
 B3="302.$$"
+B4="303.$$"
+B5="304.$$"
+B6="305.$$"
+B7="306.$$"
+B8="307.$$"
+B9="308.$$"
 cleanup() {
     [ -n "$AGENT_PID" ] && kill "$AGENT_PID" 2>/dev/null || true
     [ -n "$MOCK_PID" ] && kill "$MOCK_PID" 2>/dev/null || true
@@ -50,7 +56,8 @@ agent_start() {
         AGENT_TOKENS_FILE="$tmp/tokens.json" AGENT_BRIDGE_CONF="$tmp/bridge.conf" \
         AGENT_STATUS_FILE="$tmp/status.json" \
         AGENT_CHECK_INTERVAL=1 AGENT_JWT_MAX_AGE=1 AGENT_BRIDGE_GRACE=3600 \
-        sh "$AGENT" "$@" &
+        TZ=UTC ${AGENT_ENV:-} \
+        sh "$AGENT" "$@" 2>>"$tmp/agent.log" &
     AGENT_PID=$!
 }
 
@@ -106,5 +113,96 @@ jq -e '.access_token == "good-access"' "$tmp/tokens.json" >/dev/null \
     || { echo "FAIL: tokens.json не обновлён после refresh"; exit 1; }
 kill -TERM "$AGENT_PID"; wait "$AGENT_PID" 2>/dev/null || true
 AGENT_PID=""
+
+# ── общие помощники для кейсов grant-режима ─────────────────────────────────
+broker_pid() { pgrep -x sleep -a 2>/dev/null | awk -v b="$1" '$3 == b {print $1; exit}'; }
+# pid_changed <метка> <старый pid> <сек> — брокер перезапущен (новый pid)
+broker_up() { [ -n "$(broker_pid "$1")" ]; }
+pid_changed() {
+    for _ in $(seq 1 $(( $3 * 10 ))); do
+        p="$(broker_pid "$1")"
+        [ -n "$p" ] && [ "$p" != "$2" ] && return 0
+        sleep 0.1
+    done
+    return 1
+}
+agent_stop() { kill -TERM "$AGENT_PID"; wait "$AGENT_PID" 2>/dev/null || true; AGENT_PID=""; }
+stats() { curl -s "http://127.0.0.1:$PORT/__stats" | jq -r .requests; }
+NIGHT="$(date -u -d '2026-10-01 03:30:00' +%s)"
+NOON="$(date -u -d '2026-10-01 12:00:00' +%s)"
+tokens() { # tokens <access> <refresh> <expires_at>
+    printf '{"access_token":"%s","refresh_token":"%s","expires_at":%s,"obtained_at":1}' "$1" "$2" "$3" >"$tmp/tokens.json"
+}
+fresh() { rm -f "$tmp/bridge.conf" "$tmp/status.json" "$tmp/now" "$tmp/agent.log"; echo "1" >"$tmp/bridge-state"; }
+
+# ── 4. grant: обрыв облака не рестартует брокер и не ротирует пароль ─────────
+fresh; tokens grant-access grant-refresh 9999999999
+agent_start sleep "$B4"
+wait_for 5 grep -q 'remote_password token=gjwt-' "$tmp/bridge.conf" \
+    || { echo "FAIL[4]: нет токена моста: $(cat "$tmp/bridge.conf" 2>/dev/null)"; exit 1; }
+conf="$(cat "$tmp/bridge.conf")"; pid="$(broker_pid "$B4")"
+echo "0" >"$tmp/bridge-state"
+sleep 4
+[ "$(broker_pid "$B4")" = "$pid" ] || { echo "FAIL[4]: брокер перезапущен при grant-пароле"; exit 1; }
+[ "$(cat "$tmp/bridge.conf")" = "$conf" ] || { echo "FAIL[4]: grant-пароль ротировался"; exit 1; }
+agent_stop
+
+# ── 5. short: обрыв с протухшим паролем в памяти — рестарт без grace ────────
+fresh; tokens good-access good-refresh 9999999999
+date +%s >"$tmp/now"
+AGENT_ENV="AGENT_NOW_FILE=$tmp/now" agent_start sleep "$B5"
+wait_for 5 grep -q 'remote_password token=jwt-' "$tmp/bridge.conf" || { echo "FAIL[5]: нет JWT"; exit 1; }
+wait_for 5 broker_up "$B5" || { echo "FAIL[5]: брокер не стартовал"; exit 1; }
+pid="$(broker_pid "$B5")"
+echo $(( $(cat "$tmp/now") + 4000 )) >"$tmp/now"; echo "0" >"$tmp/bridge-state"
+pid_changed "$B5" "$pid" 6 \
+    || { echo "FAIL[5]: протухший пароль в памяти — нет немедленного рестарта"; exit 1; }
+agent_stop
+
+# ── 6. grant: ночь в окне обновления — refresh + ровно один рестарт ──────────
+fresh; echo "$NIGHT" >"$tmp/now"; tokens grant-access grant-refresh $(( NIGHT + 10 * 86400 ))
+AGENT_ENV="AGENT_NOW_FILE=$tmp/now" agent_start sleep "$B6"
+wait_for 6 sh -c "jq -e '.detail == \"grant renewed\"' '$tmp/status.json' >/dev/null" \
+    || { echo "FAIL[6]: грант не обновлён: $(cat "$tmp/status.json")"; exit 1; }
+jq -e ".expires_at > $(( NIGHT + 300 * 86400 ))" "$tmp/tokens.json" >/dev/null \
+    || { echo "FAIL[6]: expires_at не продлён"; exit 1; }
+grep -q 'token=gjwt-' "$tmp/bridge.conf" || { echo "FAIL[6]: нет нового токена моста"; exit 1; }
+pid2="$(broker_pid "$B6")"
+sleep 3
+[ "$(broker_pid "$B6")" = "$pid2" ] || { echo "FAIL[6]: лишний рестарт после обновления"; exit 1; }
+[ "$(grep -c 'плановое обновление гранта' "$tmp/agent.log")" = 1 ] \
+    || { echo "FAIL[6]: обновлений гранта не одно: $(grep -c 'плановое обновление гранта' "$tmp/agent.log")"; exit 1; }
+agent_stop
+
+# ── 7. grant: сбой сети при refresh — refresh_pending, брокер не трогаем ─────
+fresh; echo "$NIGHT" >"$tmp/now"; tokens grant-access flaky-refresh $(( NIGHT + 10 * 86400 ))
+AGENT_ENV="AGENT_NOW_FILE=$tmp/now" agent_start sleep "$B7"
+wait_for 5 broker_up "$B7" || { echo "FAIL[7]: брокер не стартовал"; exit 1; }
+pid="$(broker_pid "$B7")"
+wait_for 6 sh -c "jq -e '.state == \"refresh_pending\"' '$tmp/status.json' >/dev/null" \
+    || { echo "FAIL[7]: нет refresh_pending: $(cat "$tmp/status.json")"; exit 1; }
+[ "$(broker_pid "$B7")" = "$pid" ] || { echo "FAIL[7]: брокер перезапущен при неудачном refresh"; exit 1; }
+agent_stop
+
+# ── 8. grant: днём вне срочного окна — ждём ночи; в срочном — сразу ──────────
+fresh; echo "$NOON" >"$tmp/now"; tokens grant-access grant-refresh $(( NOON + 10 * 86400 ))
+AGENT_ENV="AGENT_NOW_FILE=$tmp/now" agent_start sleep "$B8"
+wait_for 5 grep -q 'token=gjwt-' "$tmp/bridge.conf" || { echo "FAIL[8]: нет токена моста"; exit 1; }
+sleep 3
+jq -e ".expires_at == $(( NOON + 10 * 86400 ))" "$tmp/tokens.json" >/dev/null \
+    || { echo "FAIL[8]: днём вне срочного окна refresh не должен идти"; exit 1; }
+tokens grant-access grant-refresh $(( NOON + 3 * 86400 ))
+wait_for 6 sh -c "jq -e '.detail == \"grant renewed\"' '$tmp/status.json' >/dev/null" \
+    || { echo "FAIL[8]: в срочном окне refresh не пошёл днём"; exit 1; }
+agent_stop
+
+# ── 9. needs_relink: мост снят, облако больше не дёргаем ─────────────────────
+fresh; echo "0" >"$tmp/bridge-state"; tokens stale-access dead-refresh 9999999999
+agent_start sleep "$B9"
+wait_for 5 sh -c "jq -e '.state == \"needs_relink\"' '$tmp/status.json' >/dev/null" \
+    || { echo "FAIL[9]: needs_relink не выставлен"; exit 1; }
+n="$(stats)"; sleep 4
+[ "$(stats)" = "$n" ] || { echo "FAIL[9]: после needs_relink агент продолжает ходить в облако ($n → $(stats))"; exit 1; }
+agent_stop
 
 echo "token-agent: OK"

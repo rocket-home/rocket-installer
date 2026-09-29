@@ -21,6 +21,9 @@ services:
       - mosquitto_dynamic:/mosquitto/dynamic
       # Токены OAuth: rw — агент делает плановый refresh
       - ../secrets:/mosquitto/secrets
+      # Часовой пояс хоста: token-agent обновляет грант моста ночью по МЕСТНОМУ времени
+      # (musl читает /etc/localtime сам, tzdata не нужна; без файла — UTC)
+      - /etc/localtime:/etc/localtime:ro
     environment:
       - MQTT_USER=${LOCAL_MQTT_USER:-local}
       - MQTT_PASSWORD=${LOCAL_MQTT_PASSWORD}
