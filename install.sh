@@ -29,9 +29,13 @@ die()  { printf '\033[31m✘\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ── Гварды ─────────────────────────────────────────────────────────────────────
 [ -n "${BASH_VERSION:-}" ] || die "нужен bash"
-case "$(uname -m)" in
-    x86_64|aarch64|arm64) ;;
-    *) die "неподдерживаемая архитектура: $(uname -m) (нужна amd64/arm64)" ;;
+# Архитектуру берём у dpkg, а не у ядра: 32-битная Raspberry Pi OS на Pi 4/5 грузит
+# 64-битное ядро, uname -m отвечает aarch64, а пакеты и docker-образы нужны armhf —
+# такая система проходила проверку и падала на середине установки
+arch="$(dpkg --print-architecture 2>/dev/null || uname -m)"
+case "$arch" in
+    amd64|arm64|x86_64|aarch64) ;;
+    *) die "неподдерживаемая архитектура: $arch (нужна 64-битная система amd64/arm64)" ;;
 esac
 if [ -r /etc/os-release ]; then
     # os-release читаем в сабшелле: он определяет VERSION/ID/NAME и затёр бы
