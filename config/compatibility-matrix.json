@@ -8,7 +8,7 @@
     "Правила проверяются по порядку, применяется первое совпавшее."
   ],
   "schema_version": 1,
-  "updated_at": "2026-07-10",
+  "updated_at": "2026-10-25",
   "z2m": {
     "latest_stable": "2.6.0",
     "legacy_stable": "1.42.0"
@@ -28,7 +28,7 @@
         {
           "firmware": { "max": "20210707" },
           "z2m": { "max": "1.39.1", "recommended": "1.39.1" },
-          "advice": "Прошивка Z-Stack устарела. Рекомендуем обновить координатор до 20240710+ (docs/flash-zstack.md), затем повторить детект."
+          "advice": "Прошивка Z-Stack устарела. Рекомендуем обновить координатор до актуальной сборки (20250321): https://rocket-home.ru/docs/installation/firmware.html, затем повторить детект."
         }
       ],
       "hardware_overrides": {
