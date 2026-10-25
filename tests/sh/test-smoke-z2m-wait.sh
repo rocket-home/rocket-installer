@@ -61,6 +61,11 @@ echo alive >"$tmp/mode"; : >"$tmp/probes"
 bash "$tmp/scripts/smoke-cloud.sh" >"$tmp/out1.log" 2>&1 \
     || { echo "FAIL: smoke покраснел, хотя z2m стал healthy:"; cat "$tmp/out1.log"; exit 1; }
 [ "$(cat "$tmp/probes")" -ge 3 ] || { echo "FAIL: ожидания готовности не было"; exit 1; }
+# облако выключено — итог не должен обещать устройства в rocket-home.ru
+grep -q "появятся в rocket-home.ru" "$tmp/out1.log" \
+    && { echo "FAIL: при CLOUD_AUTH_MODE=off smoke обещает облако:"; cat "$tmp/out1.log"; exit 1; }
+grep -q "Облако выключено" "$tmp/out1.log" \
+    || { echo "FAIL: нет итога для режима без облака:"; cat "$tmp/out1.log"; exit 1; }
 
 # 2) контейнер умер — падаем быстро и с указанием, куда смотреть
 echo dead >"$tmp/mode"; : >"$tmp/probes"

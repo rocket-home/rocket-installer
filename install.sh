@@ -48,6 +48,16 @@ if [ -r /etc/os-release ]; then
 else
     die "не удалось определить ОС (/etc/os-release отсутствует)"
 fi
+# Docker из snap живёт в песочнице: монтировать он может только $HOME и /media, на
+# /opt/rocket-home отвечает «read-only file system». При этом `docker compose version`
+# у него проходит, и установщик пропускал установку docker-ce — стек падал уже на make up.
+# Сносить snap сами не вправе: с ним уйдут чужие контейнеры и тома.
+if snap list docker >/dev/null 2>&1; then
+    die "Docker установлен из snap — он не может монтировать $INSTALL_DIR, и стек хаба не поднимется.
+  Удалите его (контейнеры и тома snap-docker удалятся вместе с ним — сохраните нужное):
+    sudo snap remove --purge docker
+  и запустите установку снова: Docker поставится с get.docker.com."
+fi
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -117,6 +127,8 @@ npm_ok || die "npm так и не появился — поставьте вру
 for grp in docker dialout; do
     if getent group "$grp" >/dev/null && ! id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "$grp"; then
         $SUDO usermod -aG "$grp" "$TARGET_USER"
+        # root'у группы для доступа не нужны — «перелогиньтесь» его только путает
+        [ "$TARGET_USER" = "root" ] && continue
         warn "пользователь $TARGET_USER добавлен в $grp — полноценно после перелогина"
     fi
 done
