@@ -36,7 +36,7 @@ if [ "${CLOUD_AUTH_MODE}" != "off" ]; then
         if [ "${CLOUD_AUTH_MODE}" = "oauth" ]; then
             err "  подсказка: make status (agent-status), make relink; логи: make logs SERVICE=mqtt"
         else
-            err "  подсказка: проверьте CLOUD_MQTT_USERNAME/PASSWORD (rocket-home.ru/profile/mqtt); логи: make logs SERVICE=mqtt"
+            err "  подсказка: проверьте CLOUD_MQTT_USERNAME/PASSWORD (rocket-home.ru/settings/mqtt); логи: make logs SERVICE=mqtt"
         fi
         fail=1
     fi

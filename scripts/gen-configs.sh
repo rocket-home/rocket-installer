@@ -75,7 +75,7 @@ bridge_conf="$ROCKET_ROOT/deploy/mosquitto/conf.d/bridge.conf"
 case "${CLOUD_AUTH_MODE:-oauth}" in
     static)
         [ -n "${CLOUD_MQTT_USERNAME:-}" ] && [ -n "${CLOUD_MQTT_PASSWORD:-}" ] \
-            || die "static-режим: заполните CLOUD_MQTT_USERNAME/CLOUD_MQTT_PASSWORD (rocket-home.ru/profile/mqtt)"
+            || die "static-режим: заполните CLOUD_MQTT_USERNAME/CLOUD_MQTT_PASSWORD (rocket-home.ru/settings/mqtt)"
         backup_file "$bridge_conf"
         # Явный экспорт для дочернего envsubst — см. комментарий у первого вызова выше.
         # shellcheck disable=SC2016

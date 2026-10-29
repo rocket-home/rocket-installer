@@ -52,7 +52,7 @@ rocket             # TUI-менеджер (статус, логи, permit join, 
 
 Авторизация моста: `CLOUD_AUTH_MODE=oauth` (по умолчанию, токены в `secrets/tokens.json`,
 ротацию ведёт token-agent внутри контейнера mosquitto) или `static`
-(логин/пароль с [rocket-home.ru/profile/mqtt](https://rocket-home.ru/profile/mqtt)).
+(логин/пароль с [rocket-home.ru/settings/mqtt](https://rocket-home.ru/settings/mqtt)).
 
 Матрица совместимости версий zigbee2mqtt и прошивок координаторов —
 `config/compatibility-matrix.json` (обновляется при релизах z2m).

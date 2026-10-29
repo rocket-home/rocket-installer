@@ -172,12 +172,12 @@ async function stepCloud() {
         {
           value: "oauth",
           label: "Войти через rocket-home.ru (рекомендуется)",
-          hint: "код на сайте, без ручных паролей",
+          hint: "ссылка с кодом — откройте и нажмите «Разрешить», вводить ничего не нужно",
         },
         {
           value: "static",
           label: "Логин/пароль MQTT",
-          hint: "креды со страницы rocket-home.ru/profile/mqtt",
+          hint: "креды со страницы rocket-home.ru/settings/mqtt",
         },
         { value: "off", label: "Без облака (только локально)" },
       ],
@@ -187,7 +187,7 @@ async function stepCloud() {
   if (mode === "oauth") {
     const { code } = await runMakeStep("oauth-link");
     if (code !== 0) {
-      log.warn("Линковка не завершена — можно повторить позже: make oauth-link");
+      log.warn("Линковка не завершена — повторить позже: rocket → «Переподключить облако». Подробнее: https://rocket-home.ru/docs/installation/hub-link.html");
     }
   } else if (mode === "static") {
     const user = ensure(
@@ -239,7 +239,9 @@ async function stepSmoke() {
       `  токен входа: ${env.Z2M_FRONTEND_AUTH_TOKEN || "(см. .env)"}`,
       env.COMPOSE_PROFILES?.includes("nodered") ? "Node-RED: http://<ip-машины>:1880/" : null,
       "Устройства: rocket → «Permit join», затем режим сопряжения на устройстве.",
-      "Панель облака: https://rocket-home.ru/",
+      "  или в облаке: Настройки → Радар → «Разрешить сопряжение», там же «Добавить» в один клик.",
+      "Панель облака: https://rocket-home.ru/ · привязка хаба: https://rocket-home.ru/docs/installation/hub-link.html",
+      "Алиса: Настройки → Интеграции → «Открыть навык в Яндексе».",
     ]
       .filter(Boolean)
       .join("\n"),

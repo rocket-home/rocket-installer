@@ -156,6 +156,15 @@ fetch_jwt() {
                 refresh_access || return $?
                 access="$(tokens_get access_token)"
                 attempt=1 ;;
+            403)
+                # Закреплённая локация вне выданного доступа (сузили на «Ограничение доступа»
+                # или локация чужая). Повтор не поможет — ждём env-set + повторной линковки.
+                if [ -n "${CLOUD_LOCATION_ID:-}" ]; then
+                    status wrong_location "локация $CLOUD_LOCATION_ID вне выданного доступа (403)"
+                    TERMINAL=wrong_location
+                    return 1
+                fi
+                return 2 ;;
             *) return 2 ;;
         esac
     done

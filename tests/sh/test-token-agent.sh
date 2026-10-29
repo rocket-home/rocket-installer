@@ -22,6 +22,7 @@ B6="305.$$"
 B7="306.$$"
 B8="307.$$"
 B9="308.$$"
+B10="309.$$"
 cleanup() {
     [ -n "$AGENT_PID" ] && kill "$AGENT_PID" 2>/dev/null || true
     [ -n "$MOCK_PID" ] && kill "$MOCK_PID" 2>/dev/null || true
@@ -203,6 +204,16 @@ wait_for 5 sh -c "jq -e '.state == \"needs_relink\"' '$tmp/status.json' >/dev/nu
     || { echo "FAIL[9]: needs_relink не выставлен"; exit 1; }
 n="$(stats)"; sleep 4
 [ "$(stats)" = "$n" ] || { echo "FAIL[9]: после needs_relink агент продолжает ходить в облако ($n → $(stats))"; exit 1; }
+agent_stop
+
+# ── 10. закреплённая локация вне доступа (403) → wrong_location, без долбёжки ──
+fresh; tokens good-access good-refresh 9999999999
+AGENT_ENV="CLOUD_LOCATION_ID=forbidden-loc" agent_start sleep "$B10"
+wait_for 5 sh -c "jq -e '.state == \"wrong_location\"' '$tmp/status.json' >/dev/null" \
+    || { echo "FAIL[10]: wrong_location не выставлен: $(cat "$tmp/status.json" 2>/dev/null)"; exit 1; }
+[ ! -f "$tmp/bridge.conf" ] || { echo "FAIL[10]: bridge.conf не должен существовать"; exit 1; }
+n="$(stats)"; sleep 4
+[ "$(stats)" = "$n" ] || { echo "FAIL[10]: после wrong_location агент продолжает ходить в облако"; exit 1; }
 agent_stop
 
 echo "token-agent: OK"

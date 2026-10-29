@@ -2,7 +2,7 @@
 //   GET /api/mqtt/v1/token[?lifetime=grant] и /api/mqtt/v1/locations/{id}/token:
 //     Bearer "good-access"  → короткий JWT jwt-N (lifetime: short — старое/выключенное облако);
 //     Bearer "grant-access" → токен моста gjwt-N на год (lifetime: grant), если просили grant;
-//     всё прочее → 401;
+//     локация forbidden-loc → 403 (вне выданного доступа); всё прочее → 401;
 //   POST /oauth/token (refresh):
 //     "good-refresh"  → good-access;  "grant-refresh" → grant-access;
 //     "flaky-refresh" → 503 (сеть/облако лежит);  иначе → 400 invalid_grant;
@@ -31,6 +31,7 @@ const server = createServer((req, res) => {
       /^\/api\/mqtt\/v1\/locations\/[^/]+\/token$/.test(url.pathname);
 
     if (req.method === "GET" && isToken) {
+      if (url.pathname.includes("/locations/forbidden-loc/")) return json(403, { message: "Forbidden." });
       const auth = req.headers.authorization;
       const wantGrant = url.searchParams.get("lifetime") === "grant";
       if (auth === "Bearer good-access" || auth === "Bearer grant-access") {

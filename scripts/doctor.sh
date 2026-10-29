@@ -70,14 +70,14 @@ case "${CLOUD_AUTH_MODE:-oauth}" in
             case "$st" in
                 ok) pass "token-agent: ok" ;;
                 needs_relink) failm "token-agent: нужна повторная линковка (make relink)" ;;
-                wrong_location) failm "token-agent: облако выдало токен другой локации ($(jq -r '.detail // ""' "$agent"))" ;;
+                wrong_location) failm "token-agent: локация хаба не в выданном доступе ($(jq -r '.detail // ""' "$agent")) — CLOUD_LOCATION_ID и make relink" ;;
                 refresh_pending) warn "token-agent: обновление гранта откладывается — $(jq -r '.detail // ""' "$agent") (мост работает, агент повторит сам)" ;;
                 *) warn "token-agent: $st" ;;
             esac
         fi
         ;;
     static)
-        if [ -n "${CLOUD_MQTT_USERNAME:-}" ] && [ -n "${CLOUD_MQTT_PASSWORD:-}" ]; then pass "static-креды заданы"; else failm "static-креды пусты (rocket-home.ru/profile/mqtt)"; fi
+        if [ -n "${CLOUD_MQTT_USERNAME:-}" ] && [ -n "${CLOUD_MQTT_PASSWORD:-}" ]; then pass "static-креды заданы"; else failm "static-креды пусты (rocket-home.ru/settings/mqtt)"; fi
         ;;
     off) log "мост выключен (CLOUD_AUTH_MODE=off)" ;;
 esac
